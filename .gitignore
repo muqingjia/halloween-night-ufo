@@ -1,0 +1,6 @@
+.DS_Store
+# only the Arduino sketch and the game are published
+blender/
+screenshots/
+guide/
+slide/

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Halloween Night</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pumpkin: #ff8a2a; --pumpkin-deep: #c2410c; --witch: #b07aff; --slime: #9dff6a;
+    --bone: #f4ead8; --dim: rgba(244,234,216,.6); --night: #1c1430; --beam: #9fffe2;
+    --spooky: "Creepster", "Chalkduster", fantasy; --round: "Fredoka", -apple-system, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #2a2145; color: var(--bone); font: 14px/1.4 var(--round); overflow: hidden; }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(30,8,40,.6) 100%); }
+
+  /* ---------- HUD ---------- */
+  #hud { position: absolute; top: 16px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+  .card { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 10px; border-radius: 16px; background: rgba(28,20,48,.62); border: 1px solid rgba(255,138,42,.28); box-shadow: 0 4px 18px rgba(0,0,0,.3), inset 0 0 12px rgba(255,138,42,.08); backdrop-filter: blur(4px); }
+  .card svg { width: 34px; height: 34px; flex: none; filter: drop-shadow(0 0 6px rgba(255,138,42,.6)); }
+  .num { font-family: var(--spooky); font-size: 34px; line-height: 1; color: var(--pumpkin); text-shadow: 0 0 10px rgba(255,138,42,.55), 0 2px 0 var(--pumpkin-deep); letter-spacing: .04em; }
+  .sub { font-size: 11px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; }
+  #prog { width: 120px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); margin-top: 5px; overflow: hidden; }
+  #prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--pumpkin-deep), var(--pumpkin)); box-shadow: 0 0 8px var(--pumpkin); transition: width .3s; }
+  #scoreCard.won .num { color: var(--slime); text-shadow: 0 0 12px rgba(157,255,106,.7), 0 2px 0 #3f8a1e; }
+  #scoreCard.won #prog i { background: var(--slime); box-shadow: 0 0 8px var(--slime); }
+  #beamBox { text-align: center; padding-top: 4px; }
+  #energy { width: 180px; height: 12px; margin: 5px auto 0; border-radius: 8px; background: rgba(20,12,36,.7); border: 1px solid rgba(157,255,106,.35); overflow: hidden; }
+  #energy i { display: block; height: 100%; width: 100%; border-radius: 8px; background: linear-gradient(180deg, #c8ff9e, var(--slime) 55%, #4fbf2a); box-shadow: 0 0 10px var(--slime); }
+  #timeCard .num { color: var(--witch); text-shadow: 0 0 10px rgba(176,122,255,.6), 0 2px 0 #5b2ea8; min-width: 44px; text-align: right; }
+  #timeCard svg { filter: drop-shadow(0 0 6px rgba(176,122,255,.7)); }
+  #timeCard.hurry .num { color: #ff4a5a; text-shadow: 0 0 12px rgba(255,74,90,.8), 0 2px 0 #8a1020; animation: pulse .5s infinite alternate; }
+  @keyframes pulse { to { transform: scale(1.12); } }
+
+  /* ---------- title / result ---------- */
+  #overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: radial-gradient(ellipse at 50% 40%, rgba(60,25,80,.55), rgba(15,8,28,.82)); }
+  #overlay h1 { font-family: var(--spooky); font-weight: 400; font-size: clamp(54px, 9vw, 110px); line-height: .95; margin: 0; color: var(--pumpkin); letter-spacing: .04em;
+    text-shadow: 0 0 24px rgba(255,138,42,.55), 0 4px 0 var(--pumpkin-deep), 0 10px 30px rgba(176,122,255,.45); }
+  #overlay .tag { font-size: 15px; color: var(--witch); letter-spacing: .3em; text-transform: uppercase; margin: 6px 0 22px; }
+  .rules { display: grid; grid-template-columns: auto auto; gap: 8px 18px; padding: 16px 22px; border-radius: 18px; background: rgba(28,20,48,.6); border: 1px solid rgba(255,138,42,.25); text-align: left; font-size: 14px; color: var(--bone); }
+  .rules b { color: var(--pumpkin); font-weight: 600; }
+  #oScore { font-family: var(--spooky); font-size: 34px; color: var(--slime); text-shadow: 0 0 14px rgba(157,255,106,.6); margin: 18px 0 0; min-height: 1em; }
+  .start { cursor: pointer; font-size: 22px; margin-top: 22px; padding: 12px 48px; border-radius: 30px; background: linear-gradient(180deg, var(--pumpkin), var(--pumpkin-deep)); color: #2a0f00; font-weight: 600; letter-spacing: .06em; box-shadow: 0 0 22px rgba(255,138,42,.55); animation: bob 1.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-4px); box-shadow: 0 0 32px rgba(255,138,42,.8); } }
+  .bat { position: absolute; width: 46px; opacity: .8; animation: fly 6s ease-in-out infinite; }
+  .bat:nth-of-type(2) { animation-duration: 7.5s; animation-delay: -2s; }
+  .bat:nth-of-type(3) { animation-duration: 9s; animation-delay: -4s; }
+  @keyframes fly { 0%, 100% { transform: translate(0, 0) rotate(-6deg); } 50% { transform: translate(30px, -18px) rotate(8deg); } }
+  .web { position: absolute; top: 0; width: 140px; opacity: .18; pointer-events: none; }
+
+  /* ---------- floating text ---------- */
+  .pop { position: absolute; pointer-events: none; font-family: var(--spooky); font-size: 28px; color: var(--pumpkin); text-shadow: 0 0 10px rgba(255,138,42,.7), 0 2px 0 var(--pumpkin-deep); transform: translate(-50%,-50%); transition: transform .9s ease-out, opacity .9s; white-space: nowrap; }
+  .pop.quip { font-family: var(--round); font-size: 15px; font-weight: 600; color: var(--bone); font-style: italic; text-shadow: 0 0 8px rgba(176,122,255,.9); }
+
+  #connect { position: absolute; right: 20px; bottom: 18px; background: rgba(28,20,48,.7); color: var(--pumpkin); border: 1px solid rgba(255,138,42,.45); border-radius: 20px; padding: 7px 16px; font: 600 12px var(--round); cursor: pointer; box-shadow: 0 0 12px rgba(255,138,42,.2); }
+  #connect:hover { background: rgba(255,138,42,.15); }
+
+  /* dashboard: toggle with D */
+  #dash { position: absolute; left: 20px; bottom: 18px; width: 230px; padding: 12px 14px; border-radius: 14px; background: rgba(28,20,48,.72); border: 1px solid rgba(255,138,42,.25); backdrop-filter: blur(6px); font-size: 11px; color: var(--dim); display: none; }
+  #dash.show { display: block; }
+  #dash .row { display: flex; justify-content: space-between; margin: 2px 0; }
+  #dash .row span:last-child { color: var(--bone); }
+  #pad { width: 70px; height: 70px; border-radius: 50%; border: 1px solid rgba(255,138,42,.3); position: relative; margin: 0 auto 8px; }
+  #padDot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--pumpkin); box-shadow: 0 0 6px var(--pumpkin); left: 31px; top: 31px; }
+  #spark { width: 100%; height: 36px; margin-top: 6px; }
+  #dash label { margin-right: 6px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-pumpkin" viewBox="0 0 64 64">
+      <path d="M30 10c0-4 4-6 7-5-3 2-3 5-3 7z" fill="#5d7a3a"/>
+      <ellipse cx="20" cy="36" rx="14" ry="18" fill="#e8741f"/><ellipse cx="44" cy="36" rx="14" ry="18" fill="#e8741f"/>
+      <ellipse cx="32" cy="36" rx="13" ry="20" fill="#ff8a2a"/>
+      <path d="M21 31l6-6 4 6zM33 31l6-6 4 6z" fill="#ffd36a"/><path d="M20 42q12 10 24 0l-4 2-3-3-3 4-3-4-3 3-4-2z" fill="#ffd36a"/>
+    </symbol>
+    <symbol id="i-moon" viewBox="0 0 64 64">
+      <path d="M40 8a24 24 0 1 0 16 38A20 20 0 0 1 40 8z" fill="#d9c8ff"/>
+      <circle cx="30" cy="40" r="3" fill="#b9a4f0"/><circle cx="22" cy="28" r="2" fill="#b9a4f0"/>
+    </symbol>
+    <symbol id="i-bat" viewBox="0 0 100 40">
+      <path d="M50 14c-3-6-7-6-8-2-6-8-20-10-34-4 8 2 12 8 12 14 6-4 12-4 16 2 2-4 6-6 8-4 2 6 2 8 6 8s4-2 6-8c2-2 6 0 8 4 4-6 10-6 16-2 0-6 4-12 12-14-14-6-28-4-34 4-1-4-5-4-8 2z" fill="#140c1e"/>
+    </symbol>
+  </defs>
+</svg>
+<div id="stage">
+  <div id="vignette"></div>
+  <div id="hud">
+    <div class="card" id="scoreCard">
+      <svg><use href="#i-pumpkin"/></svg>
+      <div><div class="num" id="hScore">0</div><div id="prog"><i></i></div><div class="sub" id="hTarget">goal 3000</div></div>
+    </div>
+    <div id="beamBox"><div class="sub">Tractor beam</div><div id="energy"><i></i></div></div>
+    <div class="card" id="timeCard">
+      <div class="num" id="hTime">60</div>
+      <svg><use href="#i-moon"/></svg>
+    </div>
+  </div>
+  <div id="overlay">
+    <svg class="web" style="left:0" viewBox="0 0 100 100"><g stroke="#f4ead8" stroke-width=".6" fill="none"><path d="M0 0L100 30M0 0L70 70M0 0L30 100"/><path d="M28 8Q22 22 8 28M50 15Q40 40 15 50M75 22Q60 60 22 75"/></g></svg>
+    <svg class="web" style="right:0;transform:scaleX(-1)" viewBox="0 0 100 100"><g stroke="#f4ead8" stroke-width=".6" fill="none"><path d="M0 0L100 30M0 0L70 70M0 0L30 100"/><path d="M28 8Q22 22 8 28M50 15Q40 40 15 50M75 22Q60 60 22 75"/></g></svg>
+    <svg class="bat" style="top:16%;left:18%"><use href="#i-bat"/></svg>
+    <svg class="bat" style="top:24%;right:20%"><use href="#i-bat"/></svg>
+    <svg class="bat" style="bottom:20%;left:26%"><use href="#i-bat"/></svg>
+    <h1>Halloween Night</h1>
+    <div class="tag">a duck · a saucer · one spooky farm</div>
+    <div class="rules">
+      <span>🛸 <b>Tilt</b> to fly</span><span>🔦 <b>Hold</b> button to beam</span>
+      <span>🎃 Everything can be taken</span><span>🏚 Heavy loot drains the beam</span>
+      <span>👻 Ghosts hide underground</span><span>⚡ Chain grabs for <b>COMBOS</b></span>
+    </div>
+    <div id="oScore"></div>
+    <div class="start">Start</div>
+  </div>
+  <button id="connect">🎃 Connect StickS3</button>
+  <div id="dash">
+    <div id="pad"><div id="padDot"></div></div>
+    <div class="row"><span>Tilt</span><span id="dTilt">0.00 / 0.00</span></div>
+    <div class="row"><span>Beam</span><span id="dBeam">off</span></div>
+    <div class="row"><span>Signal</span><span id="dRate">—</span></div>
+    <div class="row"><span>Abducted</span><span id="dCounts">—</span></div>
+    <canvas id="spark" width="384" height="72"></canvas>
+    <div class="row"><span>Best</span><span id="dBest">0</span></div>
+    <div class="row" style="margin-top:6px"><span><label><input type="checkbox" id="invX">inv X</label><label><input type="checkbox" id="invY">inv Y</label><label><input type="checkbox" id="swap">swap</label></span></div>
+  </div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
