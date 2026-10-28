@@ -9,7 +9,7 @@ Tilt an **M5Stack StickS3** to fly a UFO over a spooky farm and beam up everythi
 ## Run
 
 1. Flash `firmware/ufo_controller` to the StickS3 (Arduino IDE, board *M5StickS3*, USB CDC On Boot: Enabled).
-2. `python3 -m http.server 8765 -d web`
+2. `python3 serve.py` (serves `web/` on port 8765 with caching off)
 3. Open http://localhost:8765 in **Chrome**, click **Connect StickS3**, then **Start**.
 
 No controller? Arrow keys fly, Space beams, Enter starts.
