@@ -1,5 +1,6 @@
 // StickS3 UFO controller: streams IMU + buttons over USB serial.
 // Screen: dim face when idle, full-brightness mint glow while beaming, amber when the beam tank is empty.
+// Hold the side button for 3 s to power off.
 // PC -> stick: "B0|B1|B2" beam state, "G<value>,<combo>" grab event (beep + white flash).
 #include <M5Unified.h>
 
@@ -61,6 +62,13 @@ void loop() {
   if (now && !pressed) M5.Speaker.tone(330, 25);   // tiny click when the beam engages
   pressed = now;
   int b = M5.BtnB.wasPressed() ? 1 : 0;
+  if (M5.BtnB.pressedFor(3000)) {  // hold the side button 3 s to power off
+    auto &d = M5.Display;
+    d.setBrightness(80); d.fillScreen(TFT_BLACK); d.setTextColor(d.color565(150, 140, 210));
+    d.setTextDatum(middle_center); d.setTextSize(3); d.drawString("bye", d.width() / 2, d.height() / 2);
+    M5.Speaker.tone(440, 80); delay(150); M5.Speaker.tone(330, 120); delay(900);
+    M5.Power.powerOff();
+  }
   Serial.printf("%.3f,%.3f,%.3f,%.1f,%.1f,%.1f,%d,%d\n", ax, ay, az, gx, gy, gz, pressed ? 1 : 0, b);
 
   while (Serial.available()) {
