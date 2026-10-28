@@ -7,8 +7,15 @@
 enum Look { IDLE, BEAM, EMPTY, FLASH };
 Look shown = FLASH;
 bool pressed = false, pcEmpty = false;
-uint32_t flashUntil = 0, chimeAt = 0;
-int chimeFreq = 0;
+uint32_t flashUntil = 0, noteEnd = 0;
+
+// queued notes so rapid grabs never cut each other off: every grab gets its own jingle
+struct Note { uint16_t f, ms; };
+Note q[24];
+int qHead = 0, qLen = 0;
+void push(uint16_t f, uint16_t ms) {
+  if (qLen < 24) { q[(qHead + qLen) % 24] = {f, ms}; qLen++; }
+}
 String rx;
 
 void draw(Look l) {
@@ -29,10 +36,20 @@ void draw(Look l) {
   }
 }
 
+// jingle per score tier: tiny loot = one blip ... houses and barns = a fanfare
 void onGrab(int value, int combo) {
-  int f = 520 + min(value, 150) * 6;
-  M5.Speaker.tone(f, 90);
-  if (combo > 1) { chimeFreq = f * 3 / 2; chimeAt = millis() + 100; }  // rising second note for combos
+  if (value <= 10) {                       // rocks, fences, cows, pumpkins
+    push(880, 90);
+  } else if (value <= 20) {                // sheep, pigs, crows, hay, trees
+    push(784, 80); push(1047, 110);
+  } else if (value <= 40) {                // ghosts, lamps, poles, cars
+    push(659, 80); push(880, 80); push(1319, 130);
+  } else if (value <= 80) {                // tractors, wagons, silos
+    push(523, 90); push(659, 90); push(784, 90); push(1047, 170);
+  } else {                                 // houses, barns
+    push(523, 100); push(659, 100); push(784, 100); push(1047, 120); push(1568, 260);
+  }
+  if (combo > 1) push(1400 + min(combo, 5) * 120, 120);  // higher sparkle the longer the combo
   flashUntil = millis() + 120;
 }
 
@@ -48,7 +65,7 @@ void handle(const String &m) {
 void setup() {
   auto cfg = M5.config();
   M5.begin(cfg);
-  M5.Speaker.setVolume(170);
+  M5.Speaker.setVolume(255);
   Serial.begin(115200);
   draw(IDLE);
 }
@@ -76,7 +93,11 @@ void loop() {
     if (c == '\n') { handle(rx); rx = ""; }
     else if (rx.length() < 32) rx += c;
   }
-  if (chimeAt && millis() >= chimeAt) { M5.Speaker.tone(chimeFreq, 110); chimeAt = 0; }
+  if (qLen && millis() >= noteEnd) {
+    Note n = q[qHead]; qHead = (qHead + 1) % 24; qLen--;
+    M5.Speaker.tone(n.f, n.ms);
+    noteEnd = millis() + n.ms + 25;
+  }
 
   if (millis() < flashUntil) draw(FLASH);
   else if (pressed) draw(pcEmpty ? EMPTY : BEAM);
